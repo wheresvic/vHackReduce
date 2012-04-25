@@ -24,6 +24,8 @@ import org.apache.hadoop.util.ToolRunner;
 import org.hackreduce.mappers.ModelMapper;
 import org.hackreduce.models.StockExchangeDividend;
 
+import vhackreduce.simple.Nasdaq.HighestDividendReducer.Stock;
+
 
 public class Nasdaq extends Configured implements Tool
 {
@@ -76,17 +78,55 @@ public class Nasdaq extends Configured implements Tool
     {
         private static NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
         
+        public static class Stock
+        {
+            String symbol;
+            double averageDividend;
+        }
+        
+        private static Stock bestStock = new Stock();
+        
+        private static void updateBestDividend(String stock, double dividend)
+        {
+            synchronized(bestStock)
+            {
+                if (bestStock.averageDividend < dividend)
+                {
+                    bestStock.averageDividend = dividend;
+                    bestStock.symbol = stock;
+                }
+            }
+        }
+        
+        public static Stock getBestDividend()
+        {
+            synchronized(bestStock)
+            {
+                return bestStock;
+            }
+        }
+        
         @Override
         protected void reduce(Text key, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException 
         {
             context.getCounter(Count.STOCK_SYMBOLS).increment(1);
 
             double highestDividend = 0.0;
-            for (DoubleWritable value : values) {
+            double averageDividend = 0.0;
+            long count = 0;
+            
+            for (DoubleWritable value : values) 
+            {
                 highestDividend = Math.max(highestDividend, value.get());
+                averageDividend += value.get();
+                ++count;
             }
 
-            context.write(key, new Text(currencyFormat.format(highestDividend)));
+            averageDividend /= count; 
+            
+            updateBestDividend(key.toString(), averageDividend);
+            
+            context.write(key, new Text(currencyFormat.format(highestDividend) + " " + currencyFormat.format(averageDividend)));
         }
     }
     
@@ -136,6 +176,10 @@ public class Nasdaq extends Configured implements Tool
     public static void main(String[] args) throws Exception 
     {
         int result = ToolRunner.run(new Configuration(), new Nasdaq(), args);
+        
+        Stock bestStock = HighestDividendReducer.getBestDividend();
+        System.out.println("Best stock : " + bestStock.symbol + " " + bestStock.averageDividend);
+        
         System.exit(result);
     }
         
