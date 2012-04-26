@@ -26,15 +26,11 @@ public class NasdaqBest extends Configured implements Tool
 {
     public enum Count 
     {
-        STOCK_SYMBOLS,
+        UNIQUE_KEYS,
         RECORDS_SKIPPED,
         RECORDS_MAPPED
     }
     
-    public enum Stock
-    {
-        STOCK
-    }
     
     /*
      * K, V, K1, V1
@@ -49,7 +45,9 @@ public class NasdaqBest extends Configured implements Tool
         private static final Logger LOG = Logger.getLogger(BestStockMapper.class.getName());
         
         private Text word = new Text();        
-        private Text k = new Text(Stock.STOCK.toString());
+        
+        // Our own made up key to send all counts to a single Reducer, so we can aggregate a total value.
+        private Text k = new Text("Stock");
         
         public void map(Text key, Text value, Context context)
         {
@@ -88,7 +86,7 @@ public class NasdaqBest extends Configured implements Tool
         @Override
         protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
         {
-            context.getCounter(Stock.STOCK).increment(1);
+            context.getCounter(Count.UNIQUE_KEYS).increment(1);
             
             String bestStock = null;
             double bestDividend = 0.0;

@@ -19,36 +19,41 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
+import org.hackreduce.examples.wikipedia.RecordCounter.Count;
+import org.hackreduce.mappers.XMLInputFormat;
+import org.hackreduce.mappers.XMLRecordReader;
 import org.hackreduce.models.StockExchangeDividend;
+import org.hackreduce.models.WikipediaRecord;
 
 
-public class NasdaqAggregate extends Configured implements Tool
+public class WikipediaRecordCounter extends Configured implements Tool
 {
     public enum Count 
     {
-        STOCK_SYMBOLS,
+        TOTAL_RECORDS,
+        UNIQUE_KEYS,
         RECORDS_SKIPPED,
         RECORDS_MAPPED
     }
 
-    /*
-     * K, V, K1, V1
-     * The key value pair received by the mapper (K, V) depends on the InputFormat implementation used
-     * Regular TextInputFormat is LongWritable, Text
-     * 
-     * K1, V1 is implementation dependent
-     * here we are mapping stock symbol to the dividends
-     */
-    public static class HighestDividendMapper extends Mapper<LongWritable, Text, Text, DoubleWritable>
+    public static class WikipediaRecordCountMapper extends Mapper<Text, Text, Text, LongWritable>
     {
-        private static final Logger LOG = Logger.getLogger(HighestDividendMapper.class.getName());
+        private static final Logger LOG = Logger.getLogger(WikipediaRecordCountMapper.class.getName());
         
-        public void map(LongWritable key, Text value, Context context)
+        // Our own made up key to send all counts to a single Reducer, so we can aggregate a total value.
+        public static final Text TOTAL_COUNT = new Text("total");
+
+        // Just to save on object instantiation
+        public static final LongWritable ONE_COUNT = new LongWritable(1);
+        
+        public void map(Text key, Text value, Context context)
         {
             try 
             {
-                StockExchangeDividend record = new StockExchangeDividend(value);
-                context.write(new Text(record.getStockSymbol()), new DoubleWritable(record.getDividend()));
+                @SuppressWarnings("unused")
+                WikipediaRecord record = new WikipediaRecord(value);
+                context.getCounter(Count.TOTAL_RECORDS).increment(1);
+                context.write(TOTAL_COUNT, ONE_COUNT);
             } 
             catch (Exception e) 
             {
@@ -62,35 +67,21 @@ public class NasdaqAggregate extends Configured implements Tool
     }
     
     
-    /*
-     * K1, V1, K2, V2
-     * K1, V1 is the output of map
-     * K2, V2 is the result of the reduction
-     * Here we are mapping stock symbol to the highest dividend
-     */    
-    public static class HighestDividendReducer extends Reducer<Text, DoubleWritable, Text, Text> 
+    public static class WikipediaRecordCountReducer extends Reducer<Text, LongWritable, Text, LongWritable> 
     {
         // private static NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
         
         @Override
-        protected void reduce(Text key, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException 
+        protected void reduce(Text key, Iterable<LongWritable> values, Context context) throws IOException, InterruptedException 
         {
-            context.getCounter(Count.STOCK_SYMBOLS).increment(1);
+            context.getCounter(Count.UNIQUE_KEYS).increment(1);
 
-            double highestDividend = 0.0;
-            double averageDividend = 0.0;
             long count = 0;
-            
-            for (DoubleWritable value : values) 
-            {
-                highestDividend = Math.max(highestDividend, value.get());
-                averageDividend += value.get();
-                ++count;
+            for (LongWritable value : values) {
+                count += value.get();
             }
 
-            averageDividend /= count; 
-            
-            context.write(key, new Text(highestDividend + "," + averageDividend));
+            context.write(key, new LongWritable(count));
         }
     }
     
@@ -106,18 +97,20 @@ public class NasdaqAggregate extends Configured implements Tool
         job.setJobName(getClass().getName());
 
         // Tell the job which Mapper and Reducer to use (classes defined above)
-        job.setMapperClass(HighestDividendMapper.class);
-        job.setReducerClass(HighestDividendReducer.class);
+        job.setMapperClass(WikipediaRecordCountMapper.class);
+        job.setReducerClass(WikipediaRecordCountReducer.class);
         
         // This is what the Mapper will be outputting to the Reducer
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(DoubleWritable.class);
+        job.setMapOutputValueClass(LongWritable.class);
 
         // This is what the Reducer will be outputting
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
+        job.setOutputValueClass(LongWritable.class);
 
-        job.setInputFormatClass(TextInputFormat.class);
+        job.setInputFormatClass(XMLInputFormat.class);
+        XMLRecordReader.setRecordTags(job, "<page>", "</page>");
+        
         job.setOutputFormatClass(TextOutputFormat.class);
         
         // Setting the input folder of the job 

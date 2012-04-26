@@ -31,6 +31,8 @@ java -classpath ".:build/libs/HackReduce-0.2.jar:lib/*" org.hackreduce.examples.
 
 Wikipedia
 
+java -classpath ".:build/libs/HackReduce-1.0.1.jar:lib/*" vhackreduce.simple.Wikipedia datasets/wikipedia results/wikipedia_recordcounts
+
 java -classpath ".:build/libs/HackReduce-0.2.jar:lib/*" org.hackreduce.examples.wikipedia.RecordCounter datasets/wikipedia /tmp/wikipedia_recordcounts
 
 Google 1gram
