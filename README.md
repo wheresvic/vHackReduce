@@ -11,6 +11,9 @@ BIXI
 java -classpath ".:build/libs/HackReduce-0.2.jar:lib/*" org.hackreduce.examples.bixi.RecordCounter datasets/bixi /tmp/bixi_recordcounts
 
 NASDAQ
+
+java -classpath ".:build/libs/HackReduce-1.0.1.jar:lib/*" vhackreduce.simple.Nasdaq datasets/nasdaq/dividends results/nasdaq_aggregate results/nasdaq_best
+
 java -classpath ".:build/libs/HackReduce-0.2.jar:lib/*" org.hackreduce.examples.stockexchange.HighestDividend datasets/nasdaq/dividends /tmp/nasdaq_dividends
 java -classpath ".:build/libs/HackReduce-0.2.jar:lib/*" org.hackreduce.examples.stockexchange.MarketCapitalization datasets/nasdaq/daily_prices /tmp/nasdaq_marketcaps
 java -classpath ".:build/libs/HackReduce-0.2.jar:lib/*" org.hackreduce.examples.stockexchange.RecordCounter datasets/nasdaq/daily_prices /tmp/nasdaq_recordcounts

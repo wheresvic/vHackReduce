@@ -74,7 +74,7 @@ public class NasdaqAggregate extends Configured implements Tool
      */    
     public static class HighestDividendReducer extends Reducer<Text, DoubleWritable, Text, Text> 
     {
-        private static NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
+        // private static NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
         
         @Override
         protected void reduce(Text key, Iterable<DoubleWritable> values, Context context) throws IOException, InterruptedException 
@@ -94,7 +94,7 @@ public class NasdaqAggregate extends Configured implements Tool
 
             averageDividend /= count; 
             
-            context.write(key, new Text(currencyFormat.format(highestDividend) + "," + currencyFormat.format(averageDividend)));
+            context.write(key, new Text(highestDividend + "," + averageDividend));
         }
     }
     

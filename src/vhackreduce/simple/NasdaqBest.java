@@ -88,9 +88,25 @@ public class NasdaqBest extends Configured implements Tool
         @Override
         protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
         {
-            context.getCounter(Count.STOCK_SYMBOLS).increment(1);
-                        
-            // context.write(key, new Text(currencyFormat.format(highestDividend) + "," + currencyFormat.format(averageDividend)));
+            context.getCounter(Stock.STOCK).increment(1);
+            
+            String bestStock = null;
+            double bestDividend = 0.0;
+            
+            for (Text value : values)
+            {
+                StringTokenizer itr = new StringTokenizer(value.toString(), ",");
+                String stock = itr.nextToken();
+                double dividend = Double.parseDouble(itr.nextToken());
+                
+                if (bestDividend < dividend)
+                {
+                    bestDividend = dividend;
+                    bestStock = stock;
+                }
+            }
+            
+            context.write(new Text(bestStock), new Text(currencyFormat.format(bestDividend)));
         }
     }
     
